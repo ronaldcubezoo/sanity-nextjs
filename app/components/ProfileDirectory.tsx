@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Profile } from "@/lib/profile";
-import { ProfileCard } from "@/src/app/components/profile/ProfileCard";
+import { ProfileCard } from "@/app/components/profile/ProfileCard";
 
 function profileSearchText(p: Profile): string {
   const parts: string[] = [

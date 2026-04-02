@@ -5,13 +5,14 @@ import { BadgeCheck, ArrowLeft, Download } from "lucide-react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { getProfileBySlug } from "@/lib/profile"; // <-- Coworker's backend function!
+import { getProfileImage } from "@/lib/profile-images";
 
 export default async function ProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   
   // 1. Fetch data using the coworker's Sanity service
   const rawProfile = await getProfileBySlug(slug);
-
+  
   if (!rawProfile) {
     notFound();
   }
@@ -37,6 +38,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
       }))
     }))
   };
+  const profilePic = getProfileImage(profile.id);
 
   return (
     <>
@@ -60,7 +62,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
           <div className="bg-white border border-graphite/10 rounded-sm p-8 md:p-12 mb-8 shadow-sm flex flex-col md:flex-row gap-8 lg:gap-12 items-start">
             <div className="relative w-40 h-40 md:w-56 md:h-56 shrink-0 rounded-sm overflow-hidden border border-graphite/10 bg-graphite/5">
               <Image
-                src={profile.image}
+                src={profilePic}
                 alt={`Portrait of ${profile.name}`}
                 fill
                 className="object-cover object-top"

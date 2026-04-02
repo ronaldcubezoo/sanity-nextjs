@@ -35,6 +35,7 @@ export default async function Home({
         bio: p.biography || ""
     }));
 
+    
     // 3. Client-side filtering
     const filteredProfiles = profiles.filter((p) => {
         const matchesQuery =

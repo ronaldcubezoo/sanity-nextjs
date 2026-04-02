@@ -2,6 +2,7 @@ import { ArrowRight, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { Profile } from "../../data/profiles";
 import Image from "next/image";
+import { getProfileImage } from "@/lib/profile-images";
 
 interface ProfileCardProps {
   profile: Profile;
@@ -9,6 +10,7 @@ interface ProfileCardProps {
 }
 
 export default function ProfileCard({ profile, index = 0 }: ProfileCardProps) {
+  const profilePic = getProfileImage(profile.id);
   return (
     <Link
       href={`/profiles/${profile.id}`}
@@ -18,7 +20,7 @@ export default function ProfileCard({ profile, index = 0 }: ProfileCardProps) {
       {/* Headshot */}
       <div className="aspect-[4/3] overflow-hidden bg-graphite/5 relative">
         <Image
-          src={profile.image}
+          src={profilePic}
           alt={profile.name}
           loading="lazy"
           width={400}
