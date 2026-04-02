@@ -1,3 +1,40 @@
+export type Profile = {
+  id: string;
+  name: string;
+  title: string;
+  subtitle?: string;
+  category: string[];
+  image: string;
+  heroImage?: string;
+  bio: string;
+  bioExtended?: string;
+  verified: boolean;
+  marqueApproved?: boolean;
+  location?: string;
+  nationality?: string;
+  sections: ProfileSection[];
+  externalLinks?: ExternalLink[];
+  gallery?: GalleryItem[];
+  featuredQuote?: string;
+};
+
+export type ProfileSection = {
+  category: string;
+  icon?: string;
+  verified?: boolean;
+  items: { label: string; detail?: string; source?: string; year?: string }[];
+};
+
+export type ExternalLink = {
+  type: "website" | "linkedin" | "twitter" | "instagram" | "company";
+  label: string;
+  url: string;
+};
+
+export type GalleryItem = {
+  url: string;
+  caption: string;
+};
 
 export type FAQ = {
   question: string;
