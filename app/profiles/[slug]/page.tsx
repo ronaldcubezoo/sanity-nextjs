@@ -1,54 +1,79 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { BadgeCheck, ArrowLeft, Download } from "lucide-react";
+import { BadgeCheck, ArrowLeft, ArrowRight, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-import { getProfileBySlug } from "@/lib/profile"; // <-- Coworker's backend function!
-import { getProfileImage } from "@/lib/profile-images";
+import { getProfileBySlug, getProfiles } from "@/lib/profile"; //
+import { getProfileImage } from "@/lib/profile-images"; //
 
 export default async function ProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   
-  // 1. Fetch data using the coworker's Sanity service
+  // 1. Fetch current profile AND the full directory list
   const rawProfile = await getProfileBySlug(slug);
+  const allProfiles = await getProfiles();
   
   if (!rawProfile) {
     notFound();
   }
 
-  // 2. Map their data structure to your UI structure
+  // 2. Map data to UI structure/page.tsx]
   const profile = {
     id: rawProfile.slug?.current || rawProfile._id,
     name: rawProfile.name || "Unknown Name",
     title: rawProfile.headline || "",
-    category: ["Sanity Profile"], // Fallback
-    image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400", // Fallback until they add image fields
     bio: rawProfile.biography || "",
-    verified: true, // Fallback
-    marqueApproved: true, // Fallback
+    verified: true,
     sections: (rawProfile.sections || []).map((sec) => ({
       category: sec.title || sec.type || "Section",
-      verified: true,
       items: (sec.items || []).map((item) => ({
         label: item.organization || item.title || "Organization",
         detail: item.role || item.description || "",
         year: item.date || item.location || "",
-        source: "Sanity Data"
       }))
     }))
   };
-  const profilePic = getProfileImage(profile.id);
+
+  const profilePic = getProfileImage(profile.id); //
+
+  // 3. Calculate Previous and Next Profiles
+  const currentIndex = allProfiles.findIndex(p => (p.slug?.current || p._id) === profile.id);
+  const prevProfile = currentIndex > 0 ? allProfiles[currentIndex - 1] : null;
+  const nextProfile = currentIndex < allProfiles.length - 1 ? allProfiles[currentIndex + 1] : null;
 
   return (
     <>
       <Header />
+
+      {/* ── Desktop Floating Navigation Arrows ── */}
+      {prevProfile && (
+        <Link 
+          href={`/profiles/${prevProfile.slug?.current || prevProfile._id}`}
+          className="hidden lg:flex fixed left-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-white border border-graphite/10 rounded-full items-center justify-center text-graphite/30 hover:text-copper hover:border-copper/40 shadow-sm hover:shadow-lg transition-all z-40 group"
+          title={`Previous: ${prevProfile.name}`}
+        >
+          <ChevronLeft size={28} className="group-hover:-translate-x-0.5 transition-transform" />
+        </Link>
+      )}
+      
+      {nextProfile && (
+        <Link 
+          href={`/profiles/${nextProfile.slug?.current || nextProfile._id}`}
+          className="hidden lg:flex fixed right-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-white border border-graphite/10 rounded-full items-center justify-center text-graphite/30 hover:text-copper hover:border-copper/40 shadow-sm hover:shadow-lg transition-all z-40 group"
+          title={`Next: ${nextProfile.name}`}
+        >
+          <ChevronRight size={28} className="group-hover:translate-x-0.5 transition-transform" />
+        </Link>
+      )}
+
       <main className="relative min-h-screen bg-cream pt-28 pb-20">
         
-        {/* Navigation & Action Bar */}
+        {/* Top Action Bar */}
         <div className="max-w-5xl mx-auto px-6 lg:px-10 mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <Link href="/profiles" className="inline-flex items-center gap-2 text-graphite/60 hover:text-copper transition-colors text-sm font-medium">
-            <ArrowLeft size={16} /> Back to Directory
+          <Link href="/profiles" className="inline-flex items-center gap-2 text-graphite/60 hover:text-copper transition-colors text-sm font-medium group">
+            <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> 
+            Back to Directory
           </Link>
           
           <button className="inline-flex items-center gap-2 text-graphite hover:text-copper transition-colors text-sm font-medium border border-graphite/20 px-4 py-2 rounded-sm hover:border-copper/50 bg-white">
@@ -83,9 +108,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
 
-          {/* Modular Sections Grid (Powered by Coworker's Backend) */}
+          {/* Modular Sections Grid */}
           {profile.sections && profile.sections.length > 0 && (
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-8 mb-16">
               {profile.sections.map((section: any, idx: number) => (
                 <section key={idx} className="bg-white border border-graphite/10 rounded-sm p-8 shadow-sm">
                   <h2 className="text-copper font-bold text-xs tracking-widest uppercase mb-6 border-b border-graphite/10 pb-4">
@@ -104,6 +129,35 @@ export default async function ProfilePage({ params }: { params: Promise<{ slug: 
               ))}
             </div>
           )}
+
+          {/* ── Bottom Prev/Next Footer (Mobile & Tablet Only) ── */}
+          <div className="lg:hidden flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-graphite/15">
+            {prevProfile ? (
+              <Link 
+                href={`/profiles/${prevProfile.slug?.current || prevProfile._id}`}
+                className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-3 p-4 bg-white border border-graphite/10 rounded-sm hover:border-copper/40 transition-colors group"
+              >
+                <ChevronLeft size={18} className="text-graphite/40 group-hover:text-copper transition-colors" />
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-graphite/40 tracking-widest uppercase mb-0.5">Previous</p>
+                  <p className="text-sm font-semibold text-graphite group-hover:text-copper transition-colors">{prevProfile.name}</p>
+                </div>
+              </Link>
+            ) : <div className="hidden sm:block" />}
+
+            {nextProfile ? (
+              <Link 
+                href={`/profiles/${nextProfile.slug?.current || nextProfile._id}`}
+                className="w-full sm:w-auto flex items-center justify-center sm:justify-end gap-3 p-4 bg-white border border-graphite/10 rounded-sm hover:border-copper/40 transition-colors group text-right"
+              >
+                <div>
+                  <p className="text-[10px] font-bold text-graphite/40 tracking-widest uppercase mb-0.5">Next</p>
+                  <p className="text-sm font-semibold text-graphite group-hover:text-copper transition-colors">{nextProfile.name}</p>
+                </div>
+                <ChevronRight size={18} className="text-graphite/40 group-hover:text-copper transition-colors" />
+              </Link>
+            ) : <div className="hidden sm:block" />}
+          </div>
 
         </article>
       </main>
