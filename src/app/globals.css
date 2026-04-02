@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f3ec;
+  --foreground: #171614;
+  --surface: #fdfbf6;
+  --surface-border: #dad2c3;
+  --muted: #6b655a;
+  --brand: #201f1d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Your UI Custom Colors */
+  --color-cream: #f4efe6; 
+  --color-graphite: #2c2c2c;
+  --color-graphite-light: #404040;
+  --color-graphite-dark: #1a1a1a;
+  --color-copper: #b87333;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-graphite);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* =========================================
+   Custom UI Classes (Tailwind v4 Safe)
+========================================= */
+
+.container-wide {
+  width: 100%;
+  max-width: 80rem; /* max-w-7xl */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem; /* px-6 */
+  padding-right: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .container-wide {
+    padding-left: 2.5rem; /* lg:px-10 */
+    padding-right: 2.5rem;
+  }
+}
+
+.container-narrow {
+  width: 100%;
+  max-width: 56rem; /* Adjust to 48rem if you want it even tighter */
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .container-narrow {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
+  }
+}
+
+/* Hide scrollbar for category filters */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
