@@ -73,6 +73,7 @@ export function migrateLegacyProfileToBuilderBlocks(profile: Profile): ProfileBu
       roleLine1: profile.headline?.trim() || "",
       roleLine2: profile.currentRole?.trim() || "",
       location: profile.location?.trim() || "",
+      portraitImageUrl: profile.portraitImageUrl?.trim() || "",
       tags: [],
     }),
   });

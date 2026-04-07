@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -97,10 +98,18 @@ function toEditable(profile: Profile): EditableBlock[] {
   const raw = resolveProfileBuilderBlocks(profile);
   return raw.map((b: ProfileBuilderBlock) => {
     const defaults = defaultPropsForBlock(b.blockKey);
+    let props = ensureLayoutProps({ ...defaults, ...b.props });
+    if (b.blockKey === "marqueProfileHeader") {
+      const fromBlock = String(props.portraitImageUrl ?? "").trim();
+      const fromDoc = profile.portraitImageUrl?.trim() ?? "";
+      if (!fromBlock && fromDoc) {
+        props = { ...props, portraitImageUrl: fromDoc };
+      }
+    }
     return {
       _key: b._key || newKey(),
       blockKey: b.blockKey,
-      props: ensureLayoutProps({ ...defaults, ...b.props }),
+      props,
       componentDefinitionRef: b.componentDefinition?._id ?? null,
     };
   });
@@ -572,6 +581,7 @@ function PropsForm({
 
   const core = (() => {
   if (block.blockKey === "marqueProfileHeader") {
+    const portraitUrl = String(block.props.portraitImageUrl ?? "").trim();
     return (
       <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
         {(["name", "roleLine1", "roleLine2", "location"] as const).map((key) => (
@@ -585,6 +595,37 @@ function PropsForm({
             />
           </div>
         ))}
+        <div>
+          <Label htmlFor="mph-portraitImageUrl">Profile photo URL</Label>
+          <Input
+            id="mph-portraitImageUrl"
+            type="url"
+            inputMode="url"
+            placeholder="https://…"
+            value={String(block.props.portraitImageUrl ?? "")}
+            onChange={(e) => setProp("portraitImageUrl", e.target.value)}
+            className="mt-1"
+          />
+          <p className="text-[11px] text-muted-fg mt-1">
+            Direct link to an image (HTTPS). Saved to your Sanity profile and shown on the public page. Clear to use the
+            default placeholder.
+          </p>
+          {portraitUrl ? (
+            <div className="mt-2 flex items-start gap-3">
+              <div className="relative w-20 h-20 shrink-0 rounded-sm overflow-hidden border border-surface-border bg-cream/60">
+                {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary user URLs; preview only */}
+                <img
+                  src={portraitUrl}
+                  alt=""
+                  className="w-full h-full object-cover object-top"
+                  onError={(e) => {
+                    e.currentTarget.style.visibility = "hidden";
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
         <StringTagsEditor tags={block.props.tags} onChange={(next) => setProp("tags", next)} />
       </div>
     );
@@ -1194,8 +1235,15 @@ function PropsForm({
 function BlockPreview({ block }: { block: EditableBlock }) {
   if (block.blockKey === "marqueProfileHeader") {
     const tags = Array.isArray(block.props.tags) ? block.props.tags : [];
+    const portraitUrl = String(block.props.portraitImageUrl ?? "").trim();
     return (
       <div className="space-y-1">
+        {portraitUrl ? (
+          <div className="mb-1 relative w-10 h-10 rounded-sm overflow-hidden border border-surface-border bg-cream/60 shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={portraitUrl} alt="" className="w-full h-full object-cover object-top" />
+          </div>
+        ) : null}
         <p className="text-base font-bold text-graphite leading-tight">{String(block.props.name || "Name")}</p>
         <p className="text-xs text-graphite/80">{String(block.props.roleLine1 || "")}</p>
         <p className="text-[11px] text-muted-fg">{String(block.props.roleLine2 || "")}</p>
@@ -1356,6 +1404,7 @@ export default function ProfileBuilderEditor({
   componentDefinitions: ComponentDefinitionOption[];
   profileSlug: string;
 }) {
+  const router = useRouter();
   const [blocks, setBlocks] = useState<EditableBlock[]>(() => toEditable(profile));
   const [selectedKey, setSelectedKey] = useState<string | null>(() => blocks[0]?._key ?? null);
   const [saving, setSaving] = useState(false);
@@ -1485,6 +1534,9 @@ export default function ProfileBuilderEditor({
     setSaving(false);
     if (res.ok) {
       toast.success("Profile page saved");
+      if (res.slug && res.slug !== profileSlug) {
+        router.replace(`/profiles/${encodeURIComponent(res.slug)}/edit`);
+      }
     } else {
       toast.error(res.error);
     }

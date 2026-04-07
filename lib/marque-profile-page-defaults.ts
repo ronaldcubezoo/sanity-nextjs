@@ -10,6 +10,8 @@ export const DEFAULT_MARQUE_PROFILE_HEADER = {
   roleLine1: "Designer, Branding Executive, Founder, and CEO",
   roleLine2: "PETERARNELL, Intellectual Capital Investments",
   location: "New York, NY, USA",
+  /** Mirrors Sanity `profile.portraitImageUrl` — synced on save. */
+  portraitImageUrl: "",
   tags: ["Chad Angle", "ReputationDefender", "Liran Assness", "Tabono"],
 };
 

@@ -66,6 +66,7 @@ export function buildSanityProfilePageBlocksForSeed(seed: SeedProfileForBuilder)
     roleLine1: headline,
     roleLine2: current_role,
     location,
+    portraitImageUrl: portraitImageUrl || "",
     tags: tags.length > 0 ? tags : ["Profile"],
   };
 
