@@ -3,14 +3,21 @@
  *
  * Expected `profile` documents (defaults via env):
  * - `title` or `name`, `slug` (slug type), optional `headline`, `biography` (string or basic portable text blocks)
- * - `sections[]` objects: `title`, `displayOrder`, `gridColumns`, `type`, `items[]` with the usual item fields
+ * - `sections[]` may be `section` (sanity-check: `order`, `items`, dates) or `profileSection` (Salesforce: `displayOrder`, etc.)
+ * - Items support both shapes: `order`/`displayOrder`, `date` or `date_start`/`date_end`, `role` or `subtitle`
  *
  * Env: SANITY_PROJECT_ID (or NEXT_PUBLIC_SANITY_PROJECT_ID), SANITY_DATASET,
  * optional SANITY_API_READ_TOKEN (or SANITY_API_WRITE_TOKEN), SANITY_API_VERSION, SANITY_TYPE_PROFILE (default `profile`).
  */
 
 import { createClient, type SanityClient } from "@sanity/client";
-import type { Profile, ProfileSection, SectionItem } from "./profile-types";
+import type {
+  ComponentDefinitionOption,
+  Profile,
+  ProfileBuilderBlock,
+  ProfileSection,
+  SectionItem,
+} from "./profile-types";
 
 type SanitySlug = { current?: string } | null;
 
@@ -20,21 +27,41 @@ type RawItem = {
   title?: unknown;
   type?: unknown;
   role?: unknown;
+  subtitle?: unknown;
   date?: unknown;
+  date_start?: unknown;
+  date_end?: unknown;
   description?: unknown;
   organization?: unknown;
   location?: unknown;
+  order?: unknown;
   displayOrder?: unknown;
 };
 
 type RawSection = {
   _key?: string;
   _id?: string;
+  _type?: unknown;
   title?: unknown;
   displayOrder?: unknown;
+  order?: unknown;
   gridColumns?: unknown;
   type?: unknown;
+  content?: unknown;
   items?: RawItem[] | null;
+};
+
+type RawBuilderBlock = {
+  _key?: string;
+  _type?: unknown;
+  blockKey?: unknown;
+  propsJson?: unknown;
+  componentDefinition?: {
+    _id?: string;
+    name?: unknown;
+    componentKey?: unknown;
+    defaultConfigJson?: unknown;
+  } | null;
 };
 
 type RawProfileDoc = {
@@ -43,18 +70,22 @@ type RawProfileDoc = {
   slug?: SanitySlug;
   headline?: unknown;
   biography?: unknown;
+  current_role?: unknown;
+  location?: unknown;
+  portraitImageUrl?: unknown;
+  coverImageUrl?: unknown;
   sections?: RawSection[] | null;
+  builderBlocks?: RawBuilderBlock[] | null;
 };
 
+/** Match `sanity/env.ts` / seed script so Studio-only `.env` keys still enable the Next app. */
 export function isSanityConfigured(): boolean {
-  return Boolean(
-    process.env.SANITY_PROJECT_ID?.trim() ||
-      process.env.NEXT_PUBLIC_SANITY_PROJECT_ID?.trim()
-  );
+  return Boolean(envProjectId());
 }
 
 function envProjectId(): string | undefined {
   return (
+    process.env.SANITY_STUDIO_PROJECT_ID?.trim() ||
     process.env.SANITY_PROJECT_ID?.trim() ||
     process.env.NEXT_PUBLIC_SANITY_PROJECT_ID?.trim()
   );
@@ -62,6 +93,7 @@ function envProjectId(): string | undefined {
 
 function envDataset(): string | undefined {
   return (
+    process.env.SANITY_STUDIO_DATASET?.trim() ||
     process.env.SANITY_DATASET?.trim() ||
     process.env.NEXT_PUBLIC_SANITY_DATASET?.trim() ||
     "production"
@@ -109,8 +141,51 @@ function biographyToPlain(value: unknown): string | undefined {
   return out || undefined;
 }
 
-function sortByDisplayOrder<T extends { displayOrder?: number }>(rows: T[]): T[] {
-  return rows.slice().sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+function sortKey(row: { displayOrder?: number; order?: number }): number {
+  const a = row.displayOrder;
+  const b = row.order;
+  if (typeof a === "number" && !Number.isNaN(a)) return a;
+  if (typeof b === "number" && !Number.isNaN(b)) return b;
+  return 0;
+}
+
+function sortByDisplayOrder<T extends { displayOrder?: number; order?: number }>(
+  rows: T[]
+): T[] {
+  return rows.slice().sort((a, b) => sortKey(a) - sortKey(b));
+}
+
+function parsePropsJson(value: unknown): Record<string, unknown> {
+  if (value === null || value === undefined) return {};
+  if (typeof value !== "string" || !value.trim()) return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+function deserializeBuilderBlock(raw: RawBuilderBlock): ProfileBuilderBlock {
+  const ref = raw.componentDefinition;
+  const componentDefinition =
+    ref && typeof ref._id === "string"
+      ? {
+          _id: ref._id,
+          name: str(ref.name),
+          componentKey: str(ref.componentKey),
+          defaultConfigJson: str(ref.defaultConfigJson),
+        }
+      : undefined;
+  return {
+    _key: str(raw._key),
+    blockKey: str(raw.blockKey) ?? "text",
+    props: parsePropsJson(raw.propsJson),
+    componentDefinition,
+  };
 }
 
 export class SanityService {
@@ -122,7 +197,7 @@ export class SanityService {
     const dataset = envDataset();
     if (!projectId) {
       throw new Error(
-        "Missing SANITY_PROJECT_ID or NEXT_PUBLIC_SANITY_PROJECT_ID"
+        "Missing SANITY_STUDIO_PROJECT_ID, SANITY_PROJECT_ID, or NEXT_PUBLIC_SANITY_PROJECT_ID"
       );
     }
     this.profileType = process.env.SANITY_TYPE_PROFILE?.trim() || "profile";
@@ -149,41 +224,86 @@ export class SanityService {
       slug,
       headline,
       biography,
+      current_role,
+      location,
+      portraitImageUrl,
+      coverImageUrl,
       sections[]{
         _key,
         _id,
+        _type,
         title,
         displayOrder,
+        order,
         gridColumns,
         type,
+        content,
         items[]{
           _key,
           _id,
           title,
+          subtitle,
           type,
           role,
           date,
+          date_start,
+          date_end,
           description,
           organization,
           location,
+          order,
           displayOrder
+        }
+      },
+      builderBlocks[]{
+        _key,
+        _type,
+        blockKey,
+        propsJson,
+        componentDefinition->{
+          _id,
+          name,
+          componentKey,
+          defaultConfigJson
         }
       }
     }`;
   }
 
+  private itemDateLabel(raw: RawItem): string | undefined {
+    const direct = str(raw.date);
+    if (direct) return direct;
+    const start = raw.date_start;
+    const end = raw.date_end;
+    const s =
+      typeof start === "string"
+        ? start
+        : start && typeof start === "object" && start !== null && "split" in start
+          ? String(start)
+          : undefined;
+    const e =
+      typeof end === "string"
+        ? end
+        : end && typeof end === "object" && end !== null && "split" in end
+          ? String(end)
+          : undefined;
+    if (s && e) return `${s} – ${e}`;
+    return s ?? e;
+  }
+
   private deserializeItem(raw: RawItem, sectionType?: string): SectionItem {
     const itemType = str(raw.type);
+    const role = str(raw.role) ?? str(raw.subtitle);
     return {
       _key: str(raw._key) ?? str(raw._id),
       title: str(raw.title),
       type: itemType ?? sectionType,
-      role: str(raw.role),
-      date: str(raw.date),
+      role,
+      date: this.itemDateLabel(raw),
       description: str(raw.description),
       organization: str(raw.organization),
       location: str(raw.location),
-      displayOrder: num(raw.displayOrder),
+      displayOrder: num(raw.displayOrder) ?? num(raw.order),
     };
   }
 
@@ -197,9 +317,10 @@ export class SanityService {
     return {
       _key: key,
       title: str(raw.title),
-      displayOrder: num(raw.displayOrder),
+      displayOrder: num(raw.displayOrder) ?? num(raw.order),
       gridColumns: num(raw.gridColumns),
       type: sectionType,
+      content: str(raw.content),
       items,
     };
   }
@@ -211,6 +332,10 @@ export class SanityService {
     }
     const sectionsRaw = Array.isArray(doc.sections) ? doc.sections : [];
     const sections = sortByDisplayOrder(sectionsRaw.map((s) => this.deserializeSection(s)));
+    const rawBuilder = doc.builderBlocks;
+    const builderBlocksUnset = rawBuilder === undefined || rawBuilder === null;
+    const builderRaw = Array.isArray(rawBuilder) ? rawBuilder : [];
+    const builderBlocks = builderRaw.map((b) => deserializeBuilderBlock(b));
     return {
       _id: doc._id,
       name: str(doc.name),
@@ -220,8 +345,39 @@ export class SanityService {
           : undefined,
       headline: str(doc.headline),
       biography: biographyToPlain(doc.biography),
+      currentRole: str(doc.current_role),
+      location: str(doc.location),
+      portraitImageUrl: str(doc.portraitImageUrl),
+      coverImageUrl: str(doc.coverImageUrl),
       sections,
+      /** `undefined` = field absent → app may migrate legacy `sections` into builder blocks. `[]` = explicit empty page. */
+      builderBlocks: builderBlocksUnset ? undefined : builderBlocks,
     };
+  }
+
+  async fetchComponentDefinitionsForBuilder(): Promise<ComponentDefinitionOption[]> {
+    const q = `*[_type == "componentDefinition" && coalesce(isActive, true) == true] | order(coalesce(sortOrder, 999) asc) {
+      _id,
+      name,
+      componentKey,
+      defaultConfigJson
+    }`;
+    const rows = await this.client.fetch<unknown[]>(q);
+    if (!Array.isArray(rows)) return [];
+    const out: ComponentDefinitionOption[] = [];
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const id = str(r._id);
+      if (!id) continue;
+      out.push({
+        _id: id,
+        name: str(r.name),
+        componentKey: str(r.componentKey),
+        defaultConfigJson: str(r.defaultConfigJson),
+      });
+    }
+    return out;
   }
 
   async fetchProfiles(): Promise<Profile[]> {

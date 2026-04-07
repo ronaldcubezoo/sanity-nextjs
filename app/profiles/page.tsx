@@ -1,4 +1,5 @@
-import { getProfiles } from "@/lib/profile";
+import { getProfiles, type Profile } from "@/lib/profile";
+import { isSanityConfigured } from "@/lib/sanity-service";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import Header from "@/app/components/Header";
@@ -15,8 +16,9 @@ export default async function Home({
     const searchQuery = resolvedParams.q?.toLowerCase() || "";
     const activeCategory = resolvedParams.category || "All";
 
-    // 1. Fetch data using your coworker's backend
-    let rawProfiles = [];
+    const sanityReady = isSanityConfigured();
+
+    let rawProfiles: Profile[] = [];
     try {
         rawProfiles = await getProfiles();
     } catch (error) {
@@ -27,12 +29,16 @@ export default async function Home({
     const profiles = rawProfiles.map((p) => ({
         id: p.slug?.current || p._id,
         name: p.name || "Unknown Name",
-        title: p.headline || "",
-        category: ["Sanity Profile"], // Fallback until they add this to the CMS
-        image: "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400", // Fallback
+        title: p.headline || p.currentRole || "",
+        category: p.currentRole ? [p.currentRole] : ["Profile"],
+        image:
+            p.portraitImageUrl ||
+            "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400",
         verified: true,
         marqueApproved: true,
-        bio: p.biography || ""
+        bio: p.biography || "",
+        location: p.location,
+        sections: [],
     }));
 
     
@@ -84,16 +90,31 @@ export default async function Home({
             <div className="max-w-7xl mx-auto px-6 lg:px-10 py-12">
                 {filteredProfiles.length > 0 ? (
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredProfiles.map((profile: any, i: number) => (
+                        {filteredProfiles.map((profile, i: number) => (
                             <ProfileCard key={profile.id} profile={profile} index={i} />
                         ))}
                     </div>
                 ) : (
                     <div className="text-center py-24">
                         <p className="text-graphite/20 text-5xl mb-5 font-thin">—</p>
-                        <p className="text-graphite/45 text-sm mb-2">No profiles match your search.</p>
+                        {!sanityReady ? (
+                            <p className="text-graphite/60 text-sm max-w-md mx-auto mb-4">
+                                Sanity is not configured. Add{" "}
+                                <code className="text-xs bg-graphite/5 px-1 rounded">SANITY_STUDIO_PROJECT_ID</code> or{" "}
+                                <code className="text-xs bg-graphite/5 px-1 rounded">SANITY_PROJECT_ID</code> to{" "}
+                                <code className="text-xs bg-graphite/5 px-1 rounded">.env.local</code>.
+                            </p>
+                        ) : profiles.length === 0 ? (
+                            <p className="text-graphite/60 text-sm max-w-md mx-auto mb-4">
+                                No profiles in the Sanity dataset yet. Run{" "}
+                                <code className="text-xs bg-graphite/5 px-1 rounded">npm run sanity:seed</code> or add
+                                documents in Studio.
+                            </p>
+                        ) : (
+                            <p className="text-graphite/45 text-sm mb-2">No profiles match your search.</p>
+                        )}
                         <Link
-                            href="/"
+                            href="/profiles"
                             className="mt-2 inline-flex items-center gap-1 text-copper text-sm hover:gap-2 transition-all duration-200"
                         >
                             Clear filters <ChevronRight size={13} />

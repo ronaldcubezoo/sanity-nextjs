@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"; // Replaced react-router-dom useNav
 const navLinks = [
   { label: "About Us", href: "/#about" },
   { label: "Profiles", href: "/profiles" },
+  { label: "Page builder", href: "/profiles" },
   { label: "Insights", href: "/insights" },
   { label: "Contact Us", href: "/contact" },
 ];

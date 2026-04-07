@@ -22,6 +22,8 @@ export type ProfileSection = {
   category: string;
   icon?: string;
   verified?: boolean;
+  /** Rich text / body when the CMS section has no line items (e.g. `type: "text"`). */
+  content?: string;
   items: { label: string; detail?: string; source?: string; year?: string }[];
 };
 
