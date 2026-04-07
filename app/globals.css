@@ -21,6 +21,12 @@
   --color-graphite-light: #404040;
   --color-graphite-dark: #1a1a1a;
   --color-copper: #b87333;
+
+  /* Semantic tokens (alias :root) — use for surfaces, borders, muted copy */
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --color-muted-fg: var(--muted);
+  --color-brand: var(--brand);
 }
 
 body {
@@ -72,4 +78,15 @@ body {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Page builder + public profile: blocks span full grid width on small screens */
+@media (max-width: 1023px) {
+  ul.page-builder-grid > li.page-builder-cell {
+    grid-column: 1 / -1 !important;
+  }
+
+  .profile-builder-grid > .profile-builder-section {
+    grid-column: 1 / -1 !important;
+  }
 }

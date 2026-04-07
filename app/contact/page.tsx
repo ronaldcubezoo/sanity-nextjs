@@ -73,7 +73,7 @@ const enquirySchema = z.object({
     .min(10, "Message must be at least 10 characters")
     .max(1000, "Message must be less than 1000 characters"),
   privacyConsent: z.literal(true, {
-    errorMap: () => ({ message: "You must agree to the Privacy Policy to proceed" }),
+    message: "You must agree to the Privacy Policy to proceed",
   }),
 });
 
