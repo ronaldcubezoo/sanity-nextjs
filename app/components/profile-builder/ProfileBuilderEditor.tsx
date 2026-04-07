@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import { Slider } from "@/app/components/ui/slider";
 import { Textarea } from "@/app/components/ui/textarea";
 import {
   Select,
@@ -55,9 +56,15 @@ import { saveProfileBuilderBlocks, type BuilderBlockSaveInput } from "@/app/acti
 import {
   BUILDER_GRID_COLUMNS,
   BUILDER_ROW_UNIT_PX,
+  buildGridItemPlacement,
+  clampGridColumnStart,
   ensureLayoutProps,
   getGridColSpan,
+  getGridColumnStart,
   getGridRowSpan,
+  getGridRowStart,
+  gridColumnStartForAlign,
+  maxGridColumnStart,
 } from "@/lib/profile-builder-layout";
 import { resolveProfileBuilderBlocks } from "@/lib/resolve-profile-builder-blocks";
 import {
@@ -101,6 +108,8 @@ function toEditable(profile: Profile): EditableBlock[] {
 
 const CANVAS_ROOT_ID = "canvas-root";
 
+const MAX_ROW_START_SLIDER = 24;
+
 function LayoutSection({
   block,
   onChange,
@@ -110,12 +119,37 @@ function LayoutSection({
 }) {
   const col = getGridColSpan(block.props);
   const row = getGridRowSpan(block.props);
+  const colStart = getGridColumnStart(block.props);
+  const rowStart = getGridRowStart(block.props);
+  const maxColStart = maxGridColumnStart(col);
+  const manualH = colStart != null;
+  const manualV = rowStart != null;
+
   const setLayout = (key: "gridColSpan" | "gridRowSpan", value: number) => {
     onChange({
       ...block,
       props: { ...block.props, [key]: value },
     });
   };
+
+  const clearOptionalPlacement = (key: "gridColumnStart" | "gridRowStart") => {
+    const next = { ...block.props };
+    delete next[key];
+    onChange({ ...block, props: next });
+  };
+
+  const setColSpan = (newCol: number) => {
+    const cur = getGridColumnStart(block.props);
+    const nextProps: Record<string, unknown> = { ...block.props, gridColSpan: newCol };
+    if (cur != null) {
+      nextProps.gridColumnStart = clampGridColumnStart(cur, newCol);
+    }
+    onChange({ ...block, props: nextProps });
+  };
+
+  const effectiveColStart = colStart ?? 1;
+  const effectiveRowStart = rowStart ?? 1;
+
   return (
     <div className="space-y-3 pb-3 border-b border-surface-border mb-3">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-fg">Canvas grid</p>
@@ -130,7 +164,7 @@ function LayoutSection({
             value={col}
             onChange={(e) => {
               const n = Number(e.target.value);
-              if (Number.isFinite(n)) setLayout("gridColSpan", Math.min(12, Math.max(1, Math.round(n))));
+              if (Number.isFinite(n)) setColSpan(Math.min(12, Math.max(1, Math.round(n))));
             }}
             className="mt-1"
           />
@@ -151,8 +185,225 @@ function LayoutSection({
           />
         </div>
       </div>
+
+      <div className="space-y-2 rounded-sm border border-surface-border bg-cream/40 p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label className="text-[11px]">Horizontal position</Label>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              variant={!manualH ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-[10px] px-2"
+              onClick={() => clearOptionalPlacement("gridColumnStart")}
+            >
+              Auto
+            </Button>
+            <Button
+              type="button"
+              variant={manualH ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-[10px] px-2"
+              onClick={() =>
+                onChange({
+                  ...block,
+                  props: { ...block.props, gridColumnStart: colStart ?? 1 },
+                })
+              }
+            >
+              Manual
+            </Button>
+          </div>
+        </div>
+        {manualH ? (
+          <div className="space-y-2 pt-1">
+            <div className="flex gap-1 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] flex-1 min-w-[4rem]"
+                onClick={() =>
+                  onChange({
+                    ...block,
+                    props: { ...block.props, gridColumnStart: gridColumnStartForAlign("left", col) },
+                  })
+                }
+              >
+                Left
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] flex-1 min-w-[4rem]"
+                onClick={() =>
+                  onChange({
+                    ...block,
+                    props: { ...block.props, gridColumnStart: gridColumnStartForAlign("center", col) },
+                  })
+                }
+              >
+                Center
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] flex-1 min-w-[4rem]"
+                onClick={() =>
+                  onChange({
+                    ...block,
+                    props: { ...block.props, gridColumnStart: gridColumnStartForAlign("right", col) },
+                  })
+                }
+              >
+                Right
+              </Button>
+            </div>
+            <div>
+              <div className="flex justify-between text-[10px] text-muted-fg mb-1">
+                <span>
+                  Slide along the row (start column {effectiveColStart}, max {maxColStart} for this width)
+                </span>
+              </div>
+              <Slider
+                value={[clampGridColumnStart(effectiveColStart, col)]}
+                min={1}
+                max={maxColStart}
+                step={1}
+                onValueChange={(v) => {
+                  const n = v[0];
+                  if (n != null) {
+                    onChange({
+                      ...block,
+                      props: { ...block.props, gridColumnStart: n },
+                    });
+                  }
+                }}
+                className="py-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="layout-col-start" className="text-[10px]">
+                Start column (1–{maxColStart})
+              </Label>
+              <Input
+                id="layout-col-start"
+                type="number"
+                min={1}
+                max={maxColStart}
+                value={clampGridColumnStart(effectiveColStart, col)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n)) {
+                    onChange({
+                      ...block,
+                      props: {
+                        ...block.props,
+                        gridColumnStart: clampGridColumnStart(n, col),
+                      },
+                    });
+                  }
+                }}
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-fg leading-snug">
+            Auto: block follows list order in the grid. Choose Manual to slide the block left/right in the
+            free space (for your current width, up to column {maxColStart}).
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2 rounded-sm border border-surface-border bg-cream/40 p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label className="text-[11px]">Vertical position</Label>
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              variant={!manualV ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-[10px] px-2"
+              onClick={() => clearOptionalPlacement("gridRowStart")}
+            >
+              Auto
+            </Button>
+            <Button
+              type="button"
+              variant={manualV ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-[10px] px-2"
+              onClick={() =>
+                onChange({
+                  ...block,
+                  props: { ...block.props, gridRowStart: rowStart ?? 1 },
+                })
+              }
+            >
+              Manual
+            </Button>
+          </div>
+        </div>
+        {manualV ? (
+          <div className="space-y-2 pt-1">
+            <div>
+              <div className="text-[10px] text-muted-fg mb-1">Row start (1–{MAX_ROW_START_SLIDER})</div>
+              <Slider
+                value={[Math.min(MAX_ROW_START_SLIDER, effectiveRowStart)]}
+                min={1}
+                max={MAX_ROW_START_SLIDER}
+                step={1}
+                onValueChange={(v) => {
+                  const n = v[0];
+                  if (n != null) {
+                    onChange({
+                      ...block,
+                      props: { ...block.props, gridRowStart: n },
+                    });
+                  }
+                }}
+                className="py-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="layout-row-start" className="text-[10px]">
+                Row start (exact)
+              </Label>
+              <Input
+                id="layout-row-start"
+                type="number"
+                min={1}
+                max={99}
+                value={effectiveRowStart}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n)) {
+                    onChange({
+                      ...block,
+                      props: {
+                        ...block.props,
+                        gridRowStart: Math.max(1, Math.round(n)),
+                      },
+                    });
+                  }
+                }}
+                className="mt-1 h-8 text-sm"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="text-[10px] text-muted-fg leading-snug">
+            Auto: rows follow list order. Use Manual to pin this block to a specific row (e.g. align with
+            another column).
+          </p>
+        )}
+      </div>
+
       <p className="text-[10px] text-muted-fg leading-snug">
-        Drag the right or bottom edge on the canvas to resize. Blocks flow in a 12-column grid.
+        Drag blocks in the canvas to reorder. Manual placement overrides auto flow for that axis only.
       </p>
     </div>
   );
@@ -160,26 +411,27 @@ function LayoutSection({
 
 function SortableCanvasBlock({
   id,
-  colSpan,
-  rowSpan,
+  layoutProps,
   gridRef,
   children,
   onResizeCol,
   onResizeRow,
 }: {
   id: string;
-  colSpan: number;
-  rowSpan: number;
+  layoutProps: Record<string, unknown>;
   gridRef: RefObject<HTMLUListElement | null>;
   children: ReactNode;
   onResizeCol: (next: number) => void;
   onResizeRow: (next: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const colSpan = getGridColSpan(layoutProps);
+  const rowSpan = getGridRowSpan(layoutProps);
+  const placement = buildGridItemPlacement(layoutProps);
   const style = {
-    gridColumn: `span ${colSpan} / span ${colSpan}`,
-    gridRow: `span ${rowSpan} / span ${rowSpan}`,
-    minHeight: rowSpan * BUILDER_ROW_UNIT_PX,
+    gridColumn: placement.gridColumn,
+    gridRow: placement.gridRow,
+    minHeight: placement.minHeight,
     transform: CSS.Transform.toString(transform),
     transition,
   };
@@ -1333,7 +1585,7 @@ export default function ProfileBuilderEditor({
                   >
                     <ul
                       ref={canvasGridRef}
-                      className="page-builder-grid grid w-full min-w-0 grid-cols-12 gap-1 p-1 auto-rows-min [grid-auto-flow:dense]"
+                      className="page-builder-grid grid w-full min-w-0 grid-flow-row grid-cols-12 gap-1 p-1 auto-rows-min"
                     >
                       {blocks.map((b) => {
                         const col = getGridColSpan(b.props);
@@ -1342,8 +1594,7 @@ export default function ProfileBuilderEditor({
                           <SortableCanvasBlock
                             key={b._key}
                             id={b._key}
-                            colSpan={col}
-                            rowSpan={row}
+                            layoutProps={b.props}
                             gridRef={canvasGridRef}
                             onResizeCol={(next) => {
                               setBlocks((prev) =>

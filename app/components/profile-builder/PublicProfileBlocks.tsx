@@ -2,20 +2,15 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { ProfileBuilderBlock } from "@/lib/profile";
-import { BUILDER_ROW_UNIT_PX, getGridColSpan, getGridRowSpan } from "@/lib/profile-builder-layout";
+import { buildGridItemPlacement } from "@/lib/profile-builder-layout";
 import {
   labelForMarqueProfileMediaKind,
   normalizeMarqueProfileMediaKind,
 } from "@/lib/marque-profile-media-kinds";
 
 function gridLayoutStyle(props: Record<string, unknown>): CSSProperties {
-  const col = getGridColSpan(props);
-  const row = getGridRowSpan(props);
-  return {
-    gridColumn: `span ${col} / span ${col}`,
-    gridRow: `span ${row} / span ${row}`,
-    minHeight: row * BUILDER_ROW_UNIT_PX,
-  };
+  const { gridColumn, gridRow, minHeight } = buildGridItemPlacement(props);
+  return { gridColumn, gridRow, minHeight };
 }
 
 function alignClass(align: unknown): string {
@@ -30,7 +25,7 @@ export default function PublicProfileBlocks({ blocks }: { blocks: ProfileBuilder
   if (!blocks.length) return null;
 
   return (
-    <div className="profile-builder-grid grid grid-cols-12 gap-4 mt-10 w-full min-w-0">
+    <div className="profile-builder-grid grid grid-flow-row grid-cols-12 auto-rows-min gap-4 mt-10 w-full min-w-0">
       {blocks.map((block) => {
         const p = block.props;
         const gridStyle = gridLayoutStyle(p);
