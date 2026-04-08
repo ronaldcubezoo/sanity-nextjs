@@ -72,8 +72,16 @@ export default async function Home({
                                 A curated directory of verified professional profiles.
                             </p>
                         </div>
-                        <div className="text-cream/30 text-sm flex-shrink-0">
-                            <span className="text-copper font-bold text-2xl">{profiles.length}</span> profiles loaded
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-shrink-0">
+                            <Link
+                                href="/profiles/new"
+                                className="inline-flex items-center justify-center rounded-sm bg-copper px-4 py-2.5 text-sm font-medium text-cream hover:bg-copper/90 transition-colors"
+                            >
+                                Create profile
+                            </Link>
+                            <div className="text-cream/30 text-sm text-center sm:text-left">
+                                <span className="text-copper font-bold text-2xl">{profiles.length}</span> profiles loaded
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -105,11 +113,19 @@ export default async function Home({
                                 <code className="text-xs bg-graphite/5 px-1 rounded">.env.local</code>.
                             </p>
                         ) : profiles.length === 0 ? (
-                            <p className="text-graphite/60 text-sm max-w-md mx-auto mb-4">
-                                No profiles in the Sanity dataset yet. Run{" "}
-                                <code className="text-xs bg-graphite/5 px-1 rounded">npm run sanity:seed</code> or add
-                                documents in Studio.
-                            </p>
+                            <div className="max-w-md mx-auto mb-4 space-y-4">
+                                <p className="text-graphite/60 text-sm">
+                                    No profiles in the Sanity dataset yet. Create one below, run{" "}
+                                    <code className="text-xs bg-graphite/5 px-1 rounded">npm run sanity:seed</code>, or add
+                                    documents in Studio.
+                                </p>
+                                <Link
+                                    href="/profiles/new"
+                                    className="inline-flex items-center justify-center rounded-sm bg-copper px-4 py-2.5 text-sm font-medium text-cream hover:bg-copper/90 transition-colors"
+                                >
+                                    Create profile
+                                </Link>
+                            </div>
                         ) : (
                             <p className="text-graphite/45 text-sm mb-2">No profiles match your search.</p>
                         )}
